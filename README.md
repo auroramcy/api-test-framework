@@ -2,7 +2,7 @@
 
 基于 **Python + pytest + requests** 的接口自动化测试框架示例，覆盖分层封装、数据驱动、报告输出与 CI 持续集成。
 
-![CI](https://github.com/<你的用户名>/api-test-framework/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/auroramcy/api-test-framework/actions/workflows/ci.yml/badge.svg)
 
 ## 特性
 
