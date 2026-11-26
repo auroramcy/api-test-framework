@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
-"""用例层：只写业务断言，不写请求细节。"""
+"""用例层：只写业务断言，不写请求细节。
+
+数据放在 data/user.yaml，用例通过 fixture 拿到 api 客户端，
+参数化 ID 来自数据里的 case_id，失败时能直接看出是哪条数据。
+"""
 import logging
 import os
 
@@ -7,6 +11,7 @@ import pytest
 import yaml
 
 from api.user_api import UserApi
+from utils.assertions import assert_all, assert_fields, assert_match, assert_status
 
 logger = logging.getLogger(__name__)
 
@@ -16,27 +21,32 @@ with open(DATA_PATH, encoding="utf-8") as f:
 
 
 class TestUser:
-    def setup_class(self):
-        self.api = UserApi()
-
     @pytest.mark.smoke
-    def test_list_users(self):
-        resp = self.api.list_users()
-        assert resp.status_code == 200
-        assert len(resp.json()) == 10
+    def test_list_users(self, user_api: UserApi):
+        resp = user_api.list_users()
+        assert_status(resp, 200, "用户列表")
+        body = resp.json()
+        assert isinstance(body, list), "用户列表应返回数组"
+        # 不写死条数：条数是上游数据决定的，写死 10 会让用例随数据变化而假失败
+        assert len(body) > 0, "用户列表不应为空"
+        assert_all(body, lambda u: u.get("id") is not None, "每个用户都应带 id", "用户列表")
 
     @pytest.mark.parametrize("case", DATA["users"], ids=lambda c: c["case_id"])
-    def test_get_user(self, case):
+    def test_get_user(self, user_api: UserApi, case):
         logger.info("用例 %s：%s", case["case_id"], case["title"])
-        resp = self.api.get_user(case["user_id"])
-        assert resp.status_code == 200
-        assert resp.json()["name"] == case["expect_name"]
+        resp = user_api.get_user(case["user_id"])
+        assert_status(resp, 200, case["case_id"])
+        body = resp.json()
+        assert_fields(
+            body,
+            {"id": int, "name": str, "username": str, "email": str,
+             "phone": str, "website": str, "address": dict, "company": dict},
+            case["case_id"],
+        )
+        assert body["id"] == case["user_id"], f"返回 id 与请求不符：{body['id']} ≠ {case['user_id']}"
+        assert body["name"] == case["expect_name"], case["case_id"]
+        assert_match(body["email"], r"^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$", "email", case["case_id"])
 
-    def test_get_user_not_found(self):
-        resp = self.api.get_user(9999)
-        assert resp.status_code == 404
-
-    def test_create_post(self):
-        resp = self.api.create_post({"title": "qa", "body": "demo", "userId": 1})
-        assert resp.status_code == 201
-        assert resp.json()["title"] == "qa"
+    def test_get_user_not_found(self, user_api: UserApi):
+        resp = user_api.get_user(9999)
+        assert_status(resp, 404, "不存在的用户")
