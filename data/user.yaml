@@ -1,9 +1,26 @@
 # 用例数据：一份代码覆盖多组输入
 #
-# case_id：作为 pytest 用例 ID 显示在控制台和 HTML 报告里，统一用 ASCII，
-#          避免 pytest 把中文转义成 \u6b63\u5e38 这种不可读的形式。
-# title：  中文说明，运行时会写进日志，报告里对照 case_id 看即可。
+# 三层设计：
+#   users     正常场景，期望 200 —— 校验业务正常返回
+#   boundary  边界值，期望 404 —— 落在合法区间之外，但仍在「数字」这个类型内
+#   abnormal  非法输入，期望 404 —— 类型就不对，接口必须挡住
+#
+# 字段说明：
+#   case_id        作为 pytest 用例 ID 显示在报告里，统一 ASCII，避免中文被转义
+#   title          中文说明，运行时写进日志
+#   expect_status  期望状态码，让同一段用例代码同时覆盖正常与异常
+
 users:
   - {case_id: "U-01-normal-id1", title: "正常-用户1", user_id: 1, expect_name: "Leanne Graham"}
   - {case_id: "U-02-normal-id2", title: "正常-用户2", user_id: 2, expect_name: "Ervin Howell"}
   - {case_id: "U-03-normal-id3", title: "正常-用户3", user_id: 3, expect_name: "Clementine Bauch"}
+
+boundary:
+  - {case_id: "U-04-boundary-id0", title: "边界-最小合法 id 的下一个值 0", user_id: 0, expect_status: 404}
+  - {case_id: "U-05-boundary-id11", title: "边界-最大合法 id 的下一个值 11", user_id: 11, expect_status: 404}
+  - {case_id: "U-06-boundary-idmax", title: "边界-极大值 999999999", user_id: 999999999, expect_status: 404}
+
+abnormal:
+  - {case_id: "U-07-abnormal-negative", title: "非法-负数 -1", user_id: -1, expect_status: 404}
+  - {case_id: "U-08-abnormal-nan", title: "非法-非数字 abc", user_id: "abc", expect_status: 404}
+  - {case_id: "U-09-abnormal-float", title: "非法-小数 1.5", user_id: 1.5, expect_status: 404}

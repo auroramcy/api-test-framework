@@ -50,3 +50,21 @@ class TestUser:
     def test_get_user_not_found(self, user_api: UserApi):
         resp = user_api.get_user(9999)
         assert_status(resp, 404, "不存在的用户")
+
+    @pytest.mark.boundary
+    @pytest.mark.parametrize(
+        "case",
+        DATA["boundary"] + DATA["abnormal"],
+        ids=lambda c: c["case_id"],
+    )
+    def test_get_user_invalid_input(self, user_api: UserApi, case):
+        """边界值与非法输入：接口必须挡住，而不是返回 500 或任何用户数据。
+
+        这类用例最容易漏：只测正常 id 的话，越界和类型错误全靠运气。
+        """
+        logger.info("用例 %s：%s", case["case_id"], case["title"])
+        resp = user_api.get_user(case["user_id"])
+        assert_status(resp, case["expect_status"], case["case_id"])
+        assert resp.text.strip() in ("{}", "[]"), (
+            f"{case['case_id']} 非法 id 不应返回数据，实际：{resp.text[:200]!r}"
+        )
