@@ -7,6 +7,7 @@ import time
 import requests
 
 from config.setting import Settings, get_settings
+from utils.recorder import Exchange, recorder
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +52,8 @@ class RequestUtil:
             except requests.RequestException as exc:
                 if attempt > self.retries or method not in IDEMPOTENT:
                     logger.error("请求异常（已试 %d 次）%s %s: %s", attempt, method, url, exc)
+                    recorder.add(Exchange(method=method, url=url,
+                                          request=self._request_brief(kwargs), error=str(exc)))
                     raise
                 logger.warning("请求异常，第 %d 次重试：%s %s", attempt, method, url)
                 time.sleep(0.5 * attempt)
@@ -64,6 +67,15 @@ class RequestUtil:
                 continue
             return resp
 
+    @staticmethod
+    def _request_brief(kwargs: dict) -> dict:
+        """只留可读的部分，避免把整个 session 对象塞进报告。"""
+        return {
+            key: kwargs[key]
+            for key in ("params", "json", "data", "headers")
+            if kwargs.get(key)
+        }
+
     def request(self, method: str, path: str, **kwargs) -> requests.Response:
         url = f"{self.base_url}{path}"
         kwargs.setdefault("timeout", self.timeout)
@@ -75,6 +87,14 @@ class RequestUtil:
         resp = self._send(method, url, **kwargs)
         logger.info("RES %s %.0fms %s", resp.status_code,
                     resp.elapsed.total_seconds() * 1000, _brief(resp.text))
+        # 记录完整响应体（不截断）：失败时要看的就是它
+        recorder.add(Exchange(
+            method=method, url=url,
+            request=self._request_brief(kwargs),
+            status=resp.status_code,
+            elapsed_ms=resp.elapsed.total_seconds() * 1000,
+            response_text=resp.text[:4000],
+        ))
         return resp
 
     def get(self, path, **kwargs):

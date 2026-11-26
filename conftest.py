@@ -15,6 +15,7 @@ import pytest
 from api.post_api import PostApi
 from api.user_api import UserApi
 from config.setting import Settings, configure, get_settings
+from utils.recorder import recorder
 from utils.request_util import RequestUtil
 
 LOG_DIR_NAME = "logs"
@@ -70,3 +71,36 @@ def user_api(http: RequestUtil) -> UserApi:
 @pytest.fixture(scope="session")
 def post_api(http: RequestUtil) -> PostApi:
     return PostApi(http)
+
+
+# ------------------------------------------------------- 失败时挂 HTTP 往来
+
+@pytest.fixture(autouse=True)
+def _reset_recorder():
+    """每条用例开始前清空记录，保证失败报告里只有本次的请求。"""
+    recorder.reset()
+    yield
+
+
+@pytest.hookimpl(hookwrapper=True, trylast=True)
+def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo):
+    outcome = yield
+    report = outcome.get_result()
+    if not (report.when == "call" and report.failed):
+        return
+
+    traffic = recorder.render()
+    if not traffic:
+        return
+
+    # 终端：失败详情里多一节，不用再翻日志
+    report.sections.append(("HTTP 往来（本次用例）", traffic))
+
+    # HTML 报告：挂成可折叠的文本附件
+    try:
+        from pytest_html import extras
+    except ImportError:  # 没装 pytest-html 时只保留终端输出
+        return
+    report.extras = list(getattr(report, "extras", [])) + [
+        extras.text(traffic, name="HTTP 往来")
+    ]
