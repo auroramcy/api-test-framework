@@ -1,4 +1,9 @@
+# 用例数据：一份代码覆盖多组输入
+#
+# case_id：作为 pytest 用例 ID 显示在控制台和 HTML 报告里，统一用 ASCII，
+#          避免 pytest 把中文转义成 \u6b63\u5e38 这种不可读的形式。
+# title：  中文说明，运行时会写进日志，报告里对照 case_id 看即可。
 users:
-  - {user_id: 1, expect_name: "Leanne Graham"}
-  - {user_id: 2, expect_name: "Ervin Howell"}
-  - {user_id: 3, expect_name: "Clementine Bauch"}
+  - {case_id: "U-01-normal-id1", title: "正常-用户1", user_id: 1, expect_name: "Leanne Graham"}
+  - {case_id: "U-02-normal-id2", title: "正常-用户2", user_id: 2, expect_name: "Ervin Howell"}
+  - {case_id: "U-03-normal-id3", title: "正常-用户3", user_id: 3, expect_name: "Clementine Bauch"}

@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
 """用例层：只写业务断言，不写请求细节。"""
+import logging
 import os
 
 import pytest
 import yaml
 
 from api.user_api import UserApi
+
+logger = logging.getLogger(__name__)
 
 DATA_PATH = os.path.join(os.path.dirname(__file__), "..", "data", "user.yaml")
 with open(DATA_PATH, encoding="utf-8") as f:
@@ -22,8 +25,9 @@ class TestUser:
         assert resp.status_code == 200
         assert len(resp.json()) == 10
 
-    @pytest.mark.parametrize("case", DATA["users"])
+    @pytest.mark.parametrize("case", DATA["users"], ids=lambda c: c["case_id"])
     def test_get_user(self, case):
+        logger.info("用例 %s：%s", case["case_id"], case["title"])
         resp = self.api.get_user(case["user_id"])
         assert resp.status_code == 200
         assert resp.json()["name"] == case["expect_name"]
